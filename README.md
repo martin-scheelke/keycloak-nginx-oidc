@@ -2,7 +2,7 @@
 
 A small Spring Boot REST microservice that delegates authentication to **Keycloak** over
 **OpenID Connect**, sits behind an **NGINX** reverse proxy, and is packaged with **Docker
-Compose**. It holds no database.
+Compose**.
 
 The same service accepts two kinds of credential against the same Keycloak realm:
 
