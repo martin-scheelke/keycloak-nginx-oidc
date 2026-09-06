@@ -1,0 +1,176 @@
+openapi: 3.0.3
+
+info:
+  title: Keycloak/NGINX OIDC demo API
+  version: 1.0.0
+  description: |
+    Contract-first REST API for a Spring Boot microservice secured by Keycloak behind an
+    NGINX reverse proxy.
+
+    Every endpoint accepts **either** a browser session (OIDC authorization-code login)
+    **or** an `Authorization: Bearer <access-token>` JWT, validated against the Keycloak
+    `demo` realm. Authorities are the realm roles found in `realm_access.roles`.
+
+    This file is the single source of truth: the Spring `*Api` interfaces and model classes
+    in `za.co.tsa.oidcdemo.api` are generated from it at build time (openapi-generator).
+  contact:
+    name: TSA
+    email: chris@tsa.co.za
+  license:
+    name: MIT
+
+servers:
+  - url: http://host.docker.internal:8080
+    description: docker-compose stack, via the NGINX reverse proxy
+  - url: http://localhost:8080
+    description: Local run
+
+tags:
+  - name: Public
+    description: Endpoints that require no authentication
+  - name: User
+    description: Endpoints available to any authenticated principal
+  - name: Admin
+    description: Endpoints restricted to the Keycloak realm role 'admin'
+
+paths:
+  /api/public/hello:
+    get:
+      tags: [Public]
+      operationId: getPublicHello
+      summary: Unauthenticated hello
+      description: Always accessible; useful for a reverse-proxy / liveness smoke test.
+      security: []
+      responses:
+        '200':
+          description: Greeting returned
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageResponse'
+
+  /api/user/me:
+    get:
+      tags: [User]
+      operationId: getCurrentUser
+      summary: Current identity
+      description: >
+        Returns the subject, username, email, Keycloak realm roles and token scopes of the
+        caller, whether authenticated by browser session or Bearer JWT.
+      responses:
+        '200':
+          description: Identity resolved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserInfoResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /api/admin/stats:
+    get:
+      tags: [Admin]
+      operationId: getAdminStats
+      summary: Service statistics
+      description: Dummy operational data. Requires the realm role 'admin'.
+      responses:
+        '200':
+          description: Statistics returned
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminStats'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+components:
+  securitySchemes:
+    bearer-jwt:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: A Keycloak access token, e.g. obtained via the direct-access grant.
+    keycloak-oidc:
+      type: oauth2
+      description: Authorization-code flow against the Keycloak 'demo' realm
+      flows:
+        authorizationCode:
+          authorizationUrl: http://host.docker.internal:8080/realms/demo/protocol/openid-connect/auth
+          tokenUrl: http://host.docker.internal:8080/realms/demo/protocol/openid-connect/token
+          scopes:
+            openid: OpenID Connect
+            profile: Profile claims
+            email: Email claims
+
+  responses:
+    Unauthorized:
+      description: No credentials, or an invalid/expired token
+    Forbidden:
+      description: Authenticated, but the required role is missing
+
+  schemas:
+    MessageResponse:
+      type: object
+      description: A human-readable message returned by an endpoint
+      required: [message]
+      properties:
+        message:
+          type: string
+          example: Hello from a public endpoint
+
+    UserInfoResponse:
+      type: object
+      description: The authenticated principal's identity, roles and token scopes
+      required: [subject, roles, scopes, authenticationMethod]
+      properties:
+        subject:
+          type: string
+          description: OIDC subject (sub) claim
+          example: b8f9c1a2-3d4e-4f5a-9b0c-1d2e3f4a5b6c
+        username:
+          type: string
+          nullable: true
+          example: demo
+        email:
+          type: string
+          nullable: true
+          example: demo@example.com
+        roles:
+          type: array
+          description: Keycloak realm roles
+          items:
+            type: string
+          example: ["admin", "user"]
+        scopes:
+          type: array
+          description: OAuth2 scopes granted to the token
+          items:
+            type: string
+          example: ["email", "openid", "profile"]
+        authenticationMethod:
+          type: string
+          description: How the request was authenticated
+          enum: [bearer-jwt, browser-session]
+          example: bearer-jwt
+
+    AdminStats:
+      type: object
+      description: Dummy operational statistics
+      required: [generatedAt, activeSessions, uptimeHint]
+      properties:
+        generatedAt:
+          type: string
+          format: date-time
+        activeSessions:
+          type: integer
+          format: int32
+          example: 1
+        uptimeHint:
+          type: string
+          example: process-local, no database
+
+security:
+  - bearer-jwt: []
+  - keycloak-oidc: []

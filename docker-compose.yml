@@ -1,0 +1,56 @@
+name: keycloak-nginx-oidc
+
+services:
+  keycloak:
+    image: quay.io/keycloak/keycloak:26.1
+    command: ["start-dev", "--import-realm"]
+    environment:
+      KC_BOOTSTRAP_ADMIN_USERNAME: ${KEYCLOAK_ADMIN:-admin}
+      KC_BOOTSTRAP_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD:-admin}
+      # External URL the realm advertises (issuer + endpoints in the discovery document).
+      KC_HOSTNAME: http://host.docker.internal:8080
+      KC_HOSTNAME_STRICT: "false"
+      KC_HTTP_ENABLED: "true"
+      KC_PROXY_HEADERS: xforwarded
+      KC_HEALTH_ENABLED: "true"
+    volumes:
+      - ./docker/keycloak/realm-demo.json:/opt/keycloak/data/import/realm-demo.json:ro
+    networks: [edge]
+
+  nginx:
+    build:
+      context: ./docker/nginx
+    ports:
+      - "8080:8080"
+    depends_on:
+      keycloak:
+        condition: service_started
+    networks: [edge]
+
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    environment:
+      SPRING_PROFILES_ACTIVE: docker
+      DEMO_APP_CLIENT_SECRET: ${DEMO_APP_CLIENT_SECRET:-demo-app-secret}
+    # Reach Keycloak on the same host:port the browser uses, so the token issuer matches
+    # on both the front channel (browser) and the back channel (this container).
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    depends_on:
+      keycloak:
+        condition: service_started
+      nginx:
+        condition: service_started
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://localhost:8080/actuator/health/readiness | grep -q UP || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+      start_period: 30s
+    networks: [edge]
+
+networks:
+  edge:
+    driver: bridge

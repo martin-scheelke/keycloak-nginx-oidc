@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Keycloak / NGINX OIDC demo</title>
+  <style>
+    body { font-family: system-ui, sans-serif; max-width: 46rem; margin: 2rem auto; padding: 0 1rem; }
+    button, a.btn { font: inherit; padding: .4rem .8rem; margin: .2rem .2rem .2rem 0; cursor: pointer; }
+    pre { background: #f4f4f4; padding: 1rem; overflow-x: auto; white-space: pre-wrap; }
+    code { background: #f4f4f4; padding: .1rem .3rem; }
+  </style>
+</head>
+<body>
+  <h1>Keycloak / NGINX OIDC demo</h1>
+  <p>
+    This service is both an OIDC client (browser login) and a resource server (Bearer JWT).
+    Auth is delegated to Keycloak; NGINX is the single entry point on port 8080.
+  </p>
+
+  <h2>Session</h2>
+  <p>
+    <a class="btn" id="login-link" href="/oauth2/authorization/demo">Log in with Keycloak</a>
+    <a class="btn" id="secured-link" href="/secured">Open /secured (protected page)</a>
+    <button id="logout-button" type="button">Log out</button>
+  </p>
+
+  <h2>Call the API (uses the browser session cookie)</h2>
+  <p>
+    <button type="button" data-endpoint="/api/public/hello">GET /api/public/hello</button>
+    <button type="button" data-endpoint="/api/user/me">GET /api/user/me</button>
+    <button type="button" data-endpoint="/api/admin/stats">GET /api/admin/stats</button>
+  </p>
+  <pre id="output" aria-live="polite">Response will appear here.</pre>
+
+  <h2>Links</h2>
+  <ul>
+    <li><a href="/swagger-ui.html">Swagger UI / OpenAPI</a></li>
+    <li><a href="/v3/api-docs">OpenAPI JSON</a></li>
+    <li><a href="/actuator/health">Health</a></li>
+  </ul>
+
+  <script>
+    const output = document.getElementById('output');
+
+    function show(status, body) {
+      output.textContent = 'HTTP ' + status + '\n\n' + body;
+    }
+
+    document.querySelectorAll('button[data-endpoint]').forEach(function (btn) {
+      btn.addEventListener('click', async function () {
+        const res = await fetch(btn.dataset.endpoint, { headers: { 'Accept': 'application/json' } });
+        const text = await res.text();
+        try { show(res.status, JSON.stringify(JSON.parse(text), null, 2)); }
+        catch { show(res.status, text || '(empty body)'); }
+      });
+    });
+
+    document.getElementById('logout-button').addEventListener('click', function () {
+      const form = document.createElement('form');
+      form.method = 'post';
+      form.action = '/logout';
+      document.body.appendChild(form);
+      form.submit();
+    });
+  </script>
+</body>
+</html>

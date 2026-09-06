@@ -1,0 +1,57 @@
+spring:
+  application:
+    name: keycloak-nginx-oidc
+
+  security:
+    oauth2:
+      client:
+        registration:
+          demo:
+            provider: keycloak
+            client-id: demo-app
+            client-secret: ${DEMO_APP_CLIENT_SECRET:demo-app-secret}
+            authorization-grant-type: authorization_code
+            scope: openid,profile,email
+            # {baseUrl} is derived from the incoming (proxied) request, so this works behind NGINX
+            redirect-uri: "{baseUrl}/login/oauth2/code/{registrationId}"
+
+# Public URL the service is reached on (through the reverse proxy). Used in the OpenAPI doc.
+app:
+  public-base-url: ${APP_PUBLIC_BASE_URL:http://localhost:8080}
+
+server:
+  port: 8080
+  forward-headers-strategy: framework   # honour X-Forwarded-* from NGINX
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  endpoint:
+    health:
+      probes:
+        enabled: true
+
+logging:
+  level:
+    org.springframework.security: INFO
+
+---
+# Real Keycloak (any profile except the mock-auth 'test' profile). The OAuth2 client
+# discovers the provider from the issuer at startup, so Keycloak must be reachable
+# (docker-compose waits for it; see docker/app-entrypoint.sh).
+spring:
+  config:
+    activate:
+      on-profile: "!test"
+  security:
+    oauth2:
+      client:
+        provider:
+          keycloak:
+            issuer-uri: ${KEYCLOAK_ISSUER_URI:http://localhost:8080/realms/demo}
+            user-name-attribute: preferred_username
+      resourceserver:
+        jwt:
+          issuer-uri: ${KEYCLOAK_ISSUER_URI:http://localhost:8080/realms/demo}

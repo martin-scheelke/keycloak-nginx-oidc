@@ -1,0 +1,29 @@
+# Profile for context-loading tests that mock authentication (spring-security-test) and must
+# NOT reach a real Keycloak. The OAuth2 client provider uses explicit endpoints instead of
+# `issuer-uri` so no discovery call happens at startup. Resource-server `issuer-uri` stays
+# set because its JwtDecoder is built lazily (never exercised by these tests).
+spring:
+  security:
+    oauth2:
+      client:
+        registration:
+          demo:
+            provider: keycloak
+            client-id: demo-app
+            client-secret: test-secret
+            authorization-grant-type: authorization_code
+            scope: openid,profile,email
+            redirect-uri: "{baseUrl}/login/oauth2/code/{registrationId}"
+        provider:
+          keycloak:
+            authorization-uri: http://localhost:0/realms/demo/protocol/openid-connect/auth
+            token-uri: http://localhost:0/realms/demo/protocol/openid-connect/token
+            jwk-set-uri: http://localhost:0/realms/demo/protocol/openid-connect/certs
+            user-info-uri: http://localhost:0/realms/demo/protocol/openid-connect/userinfo
+            user-name-attribute: preferred_username
+      resourceserver:
+        jwt:
+          issuer-uri: http://localhost:0/realms/demo
+
+app:
+  public-base-url: http://localhost:8080

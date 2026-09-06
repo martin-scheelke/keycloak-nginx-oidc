@@ -1,0 +1,8 @@
+target/
+.git/
+.idea/
+*.iml
+.mvn/wrapper/maven-wrapper.jar
+docker/keycloak/
+docker/nginx/
+README.md

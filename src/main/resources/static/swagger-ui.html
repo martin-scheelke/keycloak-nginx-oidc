@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>API reference &mdash; Keycloak/NGINX OIDC demo</title>
+  <link rel="stylesheet" href="/webjars/swagger-ui/swagger-ui.css">
+  <style>body { margin: 0; }</style>
+</head>
+<body>
+  <div id="swagger-ui"></div>
+  <script src="/webjars/swagger-ui/swagger-ui-bundle.js"></script>
+  <script src="/webjars/swagger-ui/swagger-ui-standalone-preset.js"></script>
+  <script>
+    window.ui = SwaggerUIBundle({
+      // The hand-authored contract, served as a static resource. Nothing is generated at runtime.
+      url: '/openapi.yaml',
+      dom_id: '#swagger-ui',
+      deepLinking: true,
+      presets: [SwaggerUIBundle.presets.apis, SwaggerUIStandalonePreset],
+      plugins: [SwaggerUIBundle.plugins.DownloadUrl],
+      layout: 'StandaloneLayout',
+      oauth2RedirectUrl: window.location.origin + '/webjars/swagger-ui/oauth2-redirect.html'
+    });
+  </script>
+</body>
+</html>
