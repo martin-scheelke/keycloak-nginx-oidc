@@ -17,6 +17,12 @@ final class SeleniumWorld {
 
     private ChromeDriver driver;
 
+    /**
+     * Lazily creates (or returns the already-created) headless Chrome session for the current
+     * scenario. Headless and sandbox-disabled so this also runs inside a container/CI runner
+     * with no display and typically no elevated privileges; {@code CHROME_BIN} lets CI point at
+     * a specific installed Chrome binary instead of relying on Selenium Manager to find one.
+     */
     ChromeDriver driver() {
         if (driver == null) {
             ChromeOptions options = new ChromeOptions();
@@ -31,6 +37,9 @@ final class SeleniumWorld {
         return driver;
     }
 
+    /** Shuts down the Chrome session if one was ever started, and clears the reference so a
+     * later {@link #driver()} call on a reused instance would start a fresh session rather than
+     * reuse a dead one. Called from {@link OidcLoginSteps#tearDown()} after every scenario. */
     void quit() {
         if (driver != null) {
             driver.quit();
