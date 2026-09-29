@@ -49,6 +49,32 @@ paths:
               schema:
                 $ref: '#/components/schemas/MessageResponse'
 
+  /api/public/echo:
+    post:
+      tags: [Public]
+      operationId: postPublicEcho
+      summary: Echo a message
+      description: >
+        Unauthenticated echo endpoint. Trims the supplied message, reports its trimmed
+        character length, and returns an uppercased ("shout") version. No persistence
+        involved; useful as a dependency-free smoke test of request validation end to end.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EchoRequest'
+      responses:
+        '200':
+          description: Message echoed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EchoResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+
   /api/user/me:
     get:
       tags: [User]
@@ -109,8 +135,71 @@ components:
       description: No credentials, or an invalid/expired token
     Forbidden:
       description: Authenticated, but the required role is missing
+    ValidationError:
+      description: >
+        The request body failed Bean Validation constraints generated from this spec
+        (e.g. blank/whitespace-only `message`, or `message` longer than the declared
+        `maxLength`). This project has no `@ControllerAdvice` and does not set
+        `spring.mvc.problemdetails.enabled`, so Spring Boot's default error handling
+        applies unchanged: the body is the standard Spring Boot error-attributes map
+        (see schema below), not a field-level violations list, and `message`/`errors`
+        are omitted because `server.error.include-message` and
+        `server.error.include-binding-errors` are left at their default `never`.
+      content:
+        application/json:
+          schema:
+            type: object
+            description: Default Spring Boot error body (org.springframework.boot.web.servlet.error.DefaultErrorAttributes)
+            properties:
+              timestamp:
+                type: string
+                format: date-time
+              status:
+                type: integer
+                example: 400
+              error:
+                type: string
+                example: Bad Request
+              path:
+                type: string
+                example: /api/public/echo
 
   schemas:
+    EchoRequest:
+      type: object
+      description: Payload for POST /api/public/echo
+      required: [message]
+      properties:
+        message:
+          type: string
+          description: >
+            Text to echo. Must contain at least one non-whitespace character (blank and
+            whitespace-only strings are rejected by the `pattern` below) and be at most
+            200 characters long, measured before trimming.
+          minLength: 1
+          maxLength: 200
+          pattern: '^[\s\S]*\S[\s\S]*$'
+          example: "  Hello, Keycloak!  "
+
+    EchoResponse:
+      type: object
+      description: Result of trimming, measuring and shouting the supplied message
+      required: [message, length, shout]
+      properties:
+        message:
+          type: string
+          description: The request message, trimmed of leading/trailing whitespace
+          example: "Hello, Keycloak!"
+        length:
+          type: integer
+          format: int32
+          description: Character length of the trimmed message
+          example: 16
+        shout:
+          type: string
+          description: The trimmed message, uppercased
+          example: "HELLO, KEYCLOAK!"
+
     MessageResponse:
       type: object
       description: A human-readable message returned by an endpoint
